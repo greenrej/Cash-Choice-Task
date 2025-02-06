@@ -1,138 +1,275 @@
-
-# Analysis examining the effect of a brief delay discounting task on alcohol
-# use and alcohol-related consequences
-
 # Outcome: RAPI -----------------------------------------------------------
 
-# primary model
-m1_nb <- MASS::glm.nb(
-  rapi_score_rec ~ cash_choice + bis + sex + age +  ses2b_factor,
-  df_final)
+# (a) primary model
 
-m1_nb_summary <- broom::tidy(m1_nb) %>%
+m1_nb <- MASS::glm.nb(
+  rapi_score ~ cash_choice + sex + age + ses2b_factor + bis, 
+  data = df)
+
+m1_nb_summary <- tidy(m1_nb) %>%
   rename(b = estimate) %>% 
-  mutate(across(where(is.numeric), .fns = ~ round(.x, 3)))
+  mutate(across(where(is.numeric), .fns = ~ round(.x, 2)))
+
 m1_nb_summary
 
-check_singularity(m1_nb) 
-check_outliers(m1_nb) 
-vif(m1_nb)
+cohens_d(rapi_score ~ cash_choice, data = df)
 
-# exploratory model
-m1_nb_sex <- MASS::glm.nb(
-  rapi_score_rec ~ cash_choice*sex + bis + age +  ses2b_factor,
-  data = df_final)
+round(vif(m1_nb), 2) 
 
-m1_nb_sex_summary <- broom::tidy(m1_nb_sex) %>%
+# (b) unadjusted model
+
+m1_unadj <- MASS::glm.nb(
+  rapi_score ~ cash_choice,
+  data = df)
+
+m1_unadj_summary <- tidy(m1_unadj) %>%
   rename(b = estimate) %>% 
-  mutate(across(where(is.numeric), .fns = ~ round(.x, 3)))
-m1_nb_sex_summary
+  mutate(across(where(is.numeric), .fns = ~ round(.x, 2)))
 
-# Outcome: AUD Status -----------------------------------------------------
+m1_unadj_summary
 
-# (1) Binary AUD Status
+# (c) exploratory model
+# - add nicotine and cannabis use days as covariates
 
-# primary model
+m1_exp <- MASS::glm.nb(
+  rapi_score ~ cash_choice + sex + age + ses2b_factor + bis + cannabis_days + nicotine_days, 
+  data = df)
+check_outliers(m1_exp_3) 
+
+m1_exp_summary <- tidy(m1_exp_3) %>%
+  rename(b = estimate) %>% 
+  mutate(across(where(is.numeric), .fns = ~ round(.x, 2)))
+
+m1_exp_summary
+
+# Outcome: AUD Binary -----------------------------------------------------------
+
+# (a) primary model
+
 m2_logreg <- glm(
-  mini_binary ~ cash_choice + bis + sex + age +  ses2b_factor, 
+  AUD_binary ~ cash_choice + sex + age + ses2b_factor + bis, 
   family = 'binomial',
-  data = df_final)
+  data = df)
+check_outliers(m2_logreg) 
 
-confint(m2_logreg)
+m2_logreg_summary <- tidy(m2_logreg) %>%
+  rename(b = estimate) %>% 
+  mutate(across(where(is.numeric), .fns = ~ round(.x, 2)))
 
-m2_logreg_summary <- broom::tidy(m2_logreg) %>%
-  mutate(OR = exp(estimate)) %>% 
-  rename(b = estimate) %>%
-  mutate(across(where(is.numeric), .fns = ~ round(.x, 3)))
 m2_logreg_summary
 
-# exploratory model
-m2_logreg_sex <- glm(
-  mini_binary ~ cash_choice*sex + bis + age +  ses2b_factor, 
-  data = df_final,
-  family = 'binomial')
+round(exp(cbind(Odds_Ratio = coef(m2_logreg), confint(m2_logreg))), 2)
 
-m2_logreg_sex_summary <- broom::tidy(m2_logreg_sex) %>%
-  mutate(OR = exp(estimate)) %>% 
-  rename(b = estimate) %>%
-  mutate(across(where(is.numeric), .fns = ~ round(.x, 3)))
-m2_logreg_sex_summary
+round(vif(m2_logreg), 2) 
 
-# (2) Severity of AUD
+# (b) unadjusted model
 
-# create 3-level severity variable (due to small cell sizes at higher severity)
-df_final <- df_final %>% 
-  mutate(
-    # numeric
-    mini_severity_3l = case_when(
-      mini_severity == 'None' ~ 1,
-      mini_severity == 'Mild' ~ 2,
-      mini_severity == 'Moderate' ~ 3,
-      mini_severity == 'Severe' ~ 3),
-    # factor
-    mini_severity_3l = as.factor(mini_severity_3l))
-class(df_final$mini_severity_3l) 
-levels(df_final$mini_severity_3l) 
+m2_unadj <- glm(
+  AUD_binary ~ cash_choice, 
+  family = 'binomial',
+  data = df)
 
-# primary model
-m3_clm <- clm(
-  mini_severity_3l ~ cash_choice + bis + sex + age + ses2b_factor, 
-  data = df_final)
-summary(m3_clm) 
-exp(m3_clm$beta) 
-confint(m3_clm)
-
-# exploratory model
-m3_clm_sex <- clm(
-  mini_severity_3l ~ cash_choice*sex + bis + sex + age + ses2b_factor, 
-  data = df_final) 
-
-# Outcome: TLFB Frequency and Quantity of Alcohol Use ---------------------
-
-# (1) Frequency of alcohol use: drinking days 
-
-# primary model
-m4_nb <- MASS::glm.nb(
-  drinking_days ~ cash_choice + bis + sex + age +  ses2b_factor,
-  data = df_final)
-m4_nb_summary <- broom::tidy(m4_nb) %>%
+m2_unadj_summary <- tidy(m2_unadj) %>%
   rename(b = estimate) %>% 
-  mutate(across(where(is.numeric), .fns = ~ round(.x, 3)))
+  mutate(across(where(is.numeric), .fns = ~ round(.x, 2)))
+
+m2_unadj_summary
+
+round(exp(cbind(Odds_Ratio = coef(m2_unadj), confint(m2_unadj))), 2)
+
+# (c) exploratory model
+# - add nicotine and cannabis use days as covariates
+
+m2_exp <- glm(
+  AUD_binary ~ cash_choice + sex + age + ses2b_factor + bis + cannabis_days + nicotine_days, 
+  family = 'binomial',
+  data = df)
+
+m2_exp_summary <- tidy(m2_exp) %>%
+  rename(b = estimate) %>% 
+  mutate(across(where(is.numeric), .fns = ~ round(.x, 2)))
+
+m2_exp_summary
+
+round(exp(cbind(Odds_Ratio = coef(m2_exp), confint(m2_exp))), 2)
+
+# Outcome: AUD Severity -----------------------------------------------------------
+
+# (a) primary model
+
+m3_clm <- clm(
+  AUD_severity ~ cash_choice + sex + age + ses2b_factor + bis, 
+  data = df)
+
+m3_clm_summary <- tidy(m3_clm) %>%
+  rename(b = estimate) %>% 
+  mutate(across(where(is.numeric), .fns = ~ round(.x, 2)))
+
+m3_clm_summary
+
+exp(m3_clm$beta) 
+round(exp(confint(m3_clm)), 2) 
+
+# (b) unadjusted model
+
+m3_unadj <- clm(
+  AUD_severity ~ cash_choice, 
+  data = df)
+
+m3_unadj_summary <- tidy(m3_unadj) %>%
+  rename(b = estimate) %>% 
+  mutate(across(where(is.numeric), .fns = ~ round(.x, 2)))
+
+m3_unadj_summary
+
+exp(m3_unadj$beta) 
+round(exp(confint(m3_unadj)), 2) 
+
+# (c) exploratory model
+# - add nicotine and cannabis use days as covariates
+
+m3_exp <- clm(
+  AUD_severity ~ cash_choice + sex + age + ses2b_factor + bis + cannabis_days + nicotine_days, 
+  data = df)
+
+m3_exp_summary <- tidy(m3_exp) %>%
+  rename(b = estimate) %>% 
+  mutate(across(where(is.numeric), .fns = ~ round(.x, 2)))
+
+m3_exp_summary
+
+exp(m3_exp$beta) 
+round(exp(confint(m3_exp)), 2) 
+
+# (d) correlations as indicator of potential multicollinearity 
+
+# - AUD severity X CCT: Cramer's V
+vcor_1a <- as.matrix(table(df$AUD_severity, df$cash_choice), nrow = 2)
+vcor_1a <- rcompanion::cramerV(vcor_1a, ci = TRUE, conf = 0.95, type = 'perc', R = 1000) 
+correlation::cor_to_p(vcor_1a$Cramer.V, 69, method = 'auto') 
+
+# - AUD severity X sex: Cramer's V
+vcor_1b <- as.matrix(table(df$AUD_severity, df$sex), nrow = 2)
+vcor_1b <- rcompanion::cramerV(vcor_1b, ci = TRUE, conf = 0.95, type = 'perc', R = 1000) 
+correlation::cor_to_p(vcor_1b$Cramer.V, 69, method = 'auto') 
+
+# - AUD severity X age: ANOVA
+summary(aov(age ~ AUD_severity, data = df))
+
+# - AUD severity X SES: Chi-Square
+chisq.test(df$AUD_severity, df$ses2b_factor)
+fisher.test(temp <- as.matrix(
+  table(df$AUD_severity, df$ses2b_factor, useNA = 'ifany')), 
+  simulate.p.value = TRUE)
+
+# - AUD severity X bis: ANOVA
+summary(aov(bis ~ AUD_severity, data = df))
+TukeyHSD(aov(bis ~ AUD_severity, data = df), conf.level=.95)
+temp <- df %>% 
+  group_by(AUD_severity) %>% 
+  summarise(
+    n = n(),
+    bis_mean = mean(bis),
+    bis_sd = sd(bis))
+
+# Outcome: TLFB Drinking Days -----------------------------------------------------------
+
+# (a) primary model
+
+m4_nb <- MASS::glm.nb(
+  drinking_days ~ cash_choice + sex + age + ses2b_factor + bis, 
+  data = df)
+
+m4_nb_summary <- tidy(m4_nb) %>%
+  rename(b = estimate) %>% 
+  mutate(across(where(is.numeric), .fns = ~ round(.x, 2)))
+
 m4_nb_summary
 
-check_singularity(m4_nb)
-check_outliers(m4_nb) 
-vif(m4_nb)
+cohens_d(drinking_days ~ cash_choice, data = df)
 
-# exploratory model
-m4_nb_sex <- MASS::glm.nb(
-  drinking_days ~ cash_choice*sex + bis + age +  ses2b_factor,
-  data = df_final)
+round(vif(m4_nb), 2) 
 
-m4_nb_sex_summary <- broom::tidy(m4_nb_sex) %>%
+# (b) unadjusted model
+
+m4_unadj <- MASS::glm.nb(
+  drinking_days ~ cash_choice, 
+  data = df)
+
+m4_unadj_summary <- tidy(m4_unadj) %>%
   rename(b = estimate) %>% 
-  mutate(across(where(is.numeric), .fns = ~ round(.x, 3)))
-m4_nb_sex_summary
+  mutate(across(where(is.numeric), .fns = ~ round(.x, 2)))
 
-# (2) Quantity of alcohol use: drinks per drinking day 
+m4_unadj_summary
 
-# primary model
-m5_robust <- lm_robust(
-  dpdd ~ cash_choice + bis + sex + age +  ses2b_factor, 
-  data = df_final) 
+# (c) exploratory model
+# - add nicotine and cannabis use days as covariates
 
-m5_robust_summary <- broom::tidy(m5_robust) %>%
+m4_exp <- MASS::glm.nb(
+  drinking_days ~ cash_choice + sex + age + ses2b_factor + bis + cannabis_days + nicotine_days, 
+  data = df)
+
+m4_exp_summary <- tidy(m4_exp_3) %>%
   rename(b = estimate) %>% 
-  mutate(across(where(is.numeric), .fns = ~ round(.x, 3)))
-m5_robust_summary
+  mutate(across(where(is.numeric), .fns = ~ round(.x, 2)))
 
-# exploratory model
-m5_robust_sex <- lm_robust(
-  dpdd ~ cash_choice*sex + bis + age +  ses2b_factor,
-  data = df_final)
+m4_exp_summary
 
-m5_robust_sex_summary <- broom::tidy(m5_robust_sex) %>%
+# Outcome: TLFB Drinks per Drinking Day -----------------------------------------------------------
+
+# (a) primary model 
+
+# initial model: linear
+
+m5_linear <- lm(
+  dpdd ~ cash_choice + sex + age + ses2b_factor + bis, 
+  data = df)
+
+m5_linear_summary <- tidy(m5_linear) %>%
   rename(b = estimate) %>% 
-  mutate(across(where(is.numeric), .fns = ~ round(.x, 3)))
-m5_robust_sex_summary
+  mutate(across(where(is.numeric), .fns = ~ round(.x, 2)))
 
+m5_linear_summary
+
+check_heteroscedasticity(m5_linear)
+round(vif(m5_linear), 2)
+
+# final model: linear w/robust SE
+
+m5_linear_robust <- lm_robust(
+  dpdd ~ cash_choice + sex + age + ses2b_factor + bis, 
+  data = df, 
+  se_type = 'HC2')
+
+m5_linear_robust_summary <- tidy(m5_linear_robust) %>%
+  rename(b = estimate) %>% 
+  mutate(across(where(is.numeric), .fns = ~ round(.x, 2)))
+
+m5_linear_robust_summary
+
+# (b) unadjusted model
+
+m5_unadj <- lm_robust(
+  dpdd ~ cash_choice, 
+  data = df, 
+  se_type = 'HC2')
+
+m5_unadj_summary <- tidy(m5_unadj) %>%
+  rename(b = estimate) %>% 
+  mutate(across(where(is.numeric), .fns = ~ round(.x, 2)))
+
+m5_unadj_summary
+
+# (c) exploratory model
+# - add nicotine and cannabis use days as covariates
+
+m5_exp <- lm_robust(
+  dpdd ~ cash_choice + sex + age + ses2b_factor + bis + cannabis_days + nicotine_days, 
+  data = df, 
+  se_type = 'HC2')
+
+m5_exp_summary <- tidy(m5_exp_3) %>%
+  rename(b = estimate) %>% 
+  mutate(across(where(is.numeric), .fns = ~ round(.x, 2)))
+
+m5_exp_summary
